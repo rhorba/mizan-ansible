@@ -1,0 +1,3 @@
+collections/
+*.retry
+inventories/oci/hosts.yml

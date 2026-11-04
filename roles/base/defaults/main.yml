@@ -1,0 +1,11 @@
+---
+base_packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - unattended-upgrades
+  - python3-debian  # needed by deb822_repository (docker role)
+# OCI Ubuntu images reject everything but SSH in host iptables; the VCN
+# security list is the real firewall, so open the host rules (as cloud-init did).
+base_open_host_iptables: true
+base_harden_ssh: true

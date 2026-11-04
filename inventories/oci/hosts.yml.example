@@ -1,0 +1,10 @@
+---
+# Copy to hosts.yml (git-ignored) and set the node's public IP.
+all:
+  children:
+    mizan_nodes:
+      hosts:
+        mizan-preprod:
+          ansible_host: 203.0.113.10
+          ansible_user: ubuntu
+          docker_enabled: false  # k3s brings its own containerd

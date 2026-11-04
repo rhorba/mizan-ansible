@@ -1,0 +1,29 @@
+---
+- name: Read the installed k3s version
+  ansible.builtin.command: k3s --version
+  register: k3s_installed
+  changed_when: false
+  failed_when: false
+
+- name: Download the k3s installer
+  ansible.builtin.get_url:
+    url: https://get.k3s.io
+    dest: /usr/local/lib/k3s-install.sh
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Install or upgrade k3s to the pinned version
+  ansible.builtin.command:
+    cmd: "/usr/local/lib/k3s-install.sh {{ k3s_install_flags }}"
+  environment:
+    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+    INSTALL_K3S_SKIP_START: "{{ 'false' if k3s_start | bool else 'true' }}"
+    INSTALL_K3S_SKIP_ENABLE: "{{ 'false' if k3s_start | bool else 'true' }}"
+  when: k3s_version not in (k3s_installed.stdout | default(''))
+  changed_when: true
+
+- name: Wait for the node to be Ready
+  ansible.builtin.command: k3s kubectl wait --for=condition=Ready node --all --timeout=180s
+  changed_when: false
+  when: k3s_start | bool
