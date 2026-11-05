@@ -1,0 +1,89 @@
+---
+# Checks that only a real VM can answer: services running, sshd hardened, k3s Ready.
+- name: Verify services on a real node
+  hosts: mizan_nodes
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Collect service states
+      ansible.builtin.service_facts:
+
+    - name: Docker and k3s are running and enabled
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services[item].state == 'running'
+          - ansible_facts.services[item].status == 'enabled'
+        fail_msg: "{{ item }} is not running and enabled"
+        quiet: true
+      loop: [docker.service, k3s.service]
+
+    # Read-only lookups (no state given): 24.04 starts sshd through ssh.socket.
+    - name: Read the ssh unit states (24.04 uses socket activation)
+      ansible.builtin.systemd_service:
+        name: "{{ item }}"
+      loop: [ssh.socket, ssh.service]
+      register: verify_ssh_units
+
+    - name: Sshd is running and starts on boot, via ssh.socket or ssh.service
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['ssh.service'].state == 'running'
+          - "'enabled' in (verify_ssh_units.results | map(attribute='status.UnitFileState') | list)"
+
+    - name: Read the effective sshd configuration
+      ansible.builtin.command: sshd -T
+      register: verify_sshd
+      changed_when: false
+
+    - name: Root login and passwords are off in the running sshd
+      ansible.builtin.assert:
+        that:
+          - "'permitrootlogin no' in verify_sshd.stdout_lines"
+          - "'passwordauthentication no' in verify_sshd.stdout_lines"
+          - "'kbdinteractiveauthentication no' in verify_sshd.stdout_lines"
+          - "'maxauthtries 3' in verify_sshd.stdout_lines"
+
+    - name: List k3s nodes
+      ansible.builtin.command: k3s kubectl get nodes --no-headers
+      register: verify_nodes
+      changed_when: false
+
+    - name: The k3s node is Ready
+      ansible.builtin.assert:
+        that: verify_nodes.stdout_lines | select('search', ' Ready ') | list | length == 1
+
+    - name: Read the k3s service environment
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/k3s.service.env
+      register: verify_k3s_env
+      no_log: true
+
+    - name: The k3s service got the Vault token
+      ansible.builtin.assert:
+        # The installer writes K3S_TOKEN='<token>' (quoted).
+        that: >-
+          ("K3S_TOKEN='" ~ k3s_token ~ "'") in (verify_k3s_env.content | b64decode)
+          or ('K3S_TOKEN=' ~ k3s_token) in (verify_k3s_env.content | b64decode)
+        quiet: true
+      no_log: true
+
+    - name: Run a container through Docker
+      ansible.builtin.command: docker run --rm hello-world
+      register: verify_docker_run
+      changed_when: false
+
+    - name: Docker can pull and run an image
+      ansible.builtin.assert:
+        that: "'Hello from Docker!' in verify_docker_run.stdout"
+
+    - name: List deploy's sudo rights
+      ansible.builtin.command: sudo -l -U deploy
+      register: verify_sudo
+      changed_when: false
+
+    - name: Deploy gets only the scoped commands, not ALL
+      ansible.builtin.assert:
+        that:
+          - "'/usr/bin/systemctl' in verify_sudo.stdout"
+          - "'(ALL) ALL' not in verify_sudo.stdout"
+          - "'(ALL : ALL) ALL' not in verify_sudo.stdout"

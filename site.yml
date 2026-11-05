@@ -2,6 +2,9 @@
 - name: Prepare a mizan node (base, users, Docker, k3s)
   hosts: mizan_nodes
   become: true
+  # Run queued handlers (iptables restore, ssh reload) even if a later task fails;
+  # otherwise a clean re-run reports ok without ever applying them.
+  force_handlers: true
   roles:
     - role: base
     - role: users

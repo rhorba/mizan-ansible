@@ -44,11 +44,27 @@ GitHub Actions (`.github/workflows/ci.yml`) on every push and pull request:
    account removed, a single authorized key, sudoers file valid and `0440`, Vault token loaded)
 
 The container lab proves install and idempotency. Services (Docker, k3s, sshd, iptables)
-only start on a real VM: copy `inventories/oci/hosts.yml.example` to `hosts.yml`.
+only start on a real VM:
+
+```bash
+multipass launch 24.04 --name mizan-vm --cpus 2 --memory 4G --disk 15G
+# copy the repo into the VM, then inside it:
+scripts/vm-run.sh   # installs Ansible, run 1, run 2 (changed=0), playbooks/verify-services.yml
+```
+
+`verify-services.yml` checks what a container cannot: ssh (socket-activated on 24.04),
+Docker and k3s running and enabled, the effective `sshd -T` settings, the k3s node
+Ready, the Vault token in the k3s service environment, `docker run hello-world`, and
+that `deploy` gets only the scoped sudo commands.
+
+Last real-VM result (Ubuntu 24.04, Multipass/Hyper-V): run 1 `changed=14 failed=0`,
+run 2 `changed=0`, verify `ok=14 failed=0`.
+
+For the cloud node, copy `inventories/oci/hosts.yml.example` to `hosts.yml`.
 
 ## Roadmap
 
 - [x] Part 1: base / docker / k3s roles, idempotent, ansible-lint production profile
 - [x] Part 2: `users` role, Molecule scenario + GitHub Actions (lint, converge, idempotence, verify), Ansible Vault for the k3s token
-- [ ] Part 2b: run against a real VM so services (sshd, Docker, k3s, iptables) are started and checked
+- [x] Part 2b: real VM run (Multipass), services started and checked; `force_handlers` so a failed run cannot drop the iptables/ssh handlers
 - [ ] Part 3: Rocky / Alma (RHEL family) support
