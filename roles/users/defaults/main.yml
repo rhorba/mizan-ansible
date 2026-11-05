@@ -1,0 +1,9 @@
+---
+# Operator accounts. Each item: {name, pubkey, state (present|absent, default present)}.
+users_operators: []
+users_group: mizanops
+# Commands the group may run with sudo. Keep it scoped; "ALL" only on purpose.
+users_sudo_commands:
+  - /usr/bin/systemctl
+  - /usr/local/bin/k3s
+  - /usr/bin/journalctl

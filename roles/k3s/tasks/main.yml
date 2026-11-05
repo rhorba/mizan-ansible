@@ -20,8 +20,10 @@
     INSTALL_K3S_VERSION: "{{ k3s_version }}"
     INSTALL_K3S_SKIP_START: "{{ 'false' if k3s_start | bool else 'true' }}"
     INSTALL_K3S_SKIP_ENABLE: "{{ 'false' if k3s_start | bool else 'true' }}"
+    K3S_TOKEN: "{{ k3s_token }}"
   when: k3s_version not in (k3s_installed.stdout | default(''))
   changed_when: true
+  no_log: "{{ k3s_token | length > 0 }}"  # keep the token out of logs
 
 - name: Wait for the node to be Ready
   ansible.builtin.command: k3s kubectl wait --for=condition=Ready node --all --timeout=180s

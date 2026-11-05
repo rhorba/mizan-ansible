@@ -1,0 +1,31 @@
+---
+driver:
+  name: docker
+platforms:
+  - name: mizan-molecule
+    image: ubuntu:24.04
+    pre_build_image: false  # Molecule adds Python to the image
+    groups: [mizan_nodes]
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      roles_path: ${MOLECULE_PROJECT_DIRECTORY}/roles
+      vault_password_file: ${MOLECULE_PROJECT_DIRECTORY}/inventories/lab/vault-pass.lab
+      callback_result_format: yaml
+  inventory:
+    # links replace inline vars, so both come from files
+    links:
+      group_vars: ../../inventories/lab/group_vars/
+      host_vars: ./host_vars/
+verifier:
+  name: ansible
+scenario:
+  test_sequence:
+    - destroy
+    - syntax
+    - create
+    - converge
+    - idempotence
+    - verify
+    - destroy

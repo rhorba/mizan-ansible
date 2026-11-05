@@ -1,9 +1,10 @@
 ---
-- name: Prepare a mizan node (base, Docker, k3s)
+- name: Prepare a mizan node (base, users, Docker, k3s)
   hosts: mizan_nodes
   become: true
   roles:
     - role: base
+    - role: users
     - role: docker
       when: docker_enabled | default(true) | bool
     - role: k3s

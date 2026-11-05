@@ -1,0 +1,8 @@
+---
+# Copy to vars.yml (git-ignored). Create vault.yml with:
+#   ansible-vault create inventories/oci/group_vars/mizan_nodes/vault.yml
+# holding vault_k3s_token, and keep the password in ~/.vault-pass (never committed).
+k3s_token: "{{ vault_k3s_token }}"
+users_operators:
+  - name: deploy
+    pubkey: ssh-ed25519 AAAA... you@laptop

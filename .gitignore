@@ -1,3 +1,6 @@
 collections/
 *.retry
 inventories/oci/hosts.yml
+.vault-pass
+inventories/oci/group_vars/mizan_nodes/vars.yml
+inventories/oci/group_vars/mizan_nodes/vault.yml

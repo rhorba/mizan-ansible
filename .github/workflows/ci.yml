@@ -1,0 +1,50 @@
+---
+name: ci
+
+"on":
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install tools
+        run: pip install "ansible-core>=2.16,<2.18" ansible-lint yamllint
+      - name: Install collections
+        run: ansible-galaxy collection install -r requirements.yml -p ./collections
+      - name: Vault files are encrypted
+        run: bash scripts/check-vault-encrypted.sh
+      - name: yamllint
+        run: yamllint -s .
+      - name: ansible-lint (production profile)
+        run: ansible-lint
+        env:
+          ANSIBLE_VAULT_PASSWORD_FILE: inventories/lab/vault-pass.lab
+
+  molecule:
+    needs: lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install tools
+        run: pip install "ansible-core>=2.16,<2.18" "molecule>=25,<26" "molecule-plugins[docker]"
+      - name: Install collections
+        run: ansible-galaxy collection install -r requirements.yml -p ./collections
+      - name: Molecule test (converge, idempotence, verify)
+        run: molecule test
+        env:
+          ANSIBLE_COLLECTIONS_PATH: ${{ github.workspace }}/collections
+          PY_COLORS: "1"
+          ANSIBLE_FORCE_COLOR: "1"

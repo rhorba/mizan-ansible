@@ -1,0 +1,90 @@
+---
+- name: Verify the mizan node
+  hosts: mizan_nodes
+  gather_facts: false
+  tasks:
+    # Namespaced, so they cannot override inventory values such as the Vault token.
+    - name: Load the k3s role defaults
+      ansible.builtin.include_vars:
+        file: ../../roles/k3s/defaults/main.yml
+        name: verify_k3s_defaults
+
+    - name: Load the users role defaults
+      ansible.builtin.include_vars:
+        file: ../../roles/users/defaults/main.yml
+        name: verify_users_defaults
+
+    - name: Collect installed packages
+      ansible.builtin.package_facts:
+
+    - name: Base and Docker packages are installed
+      ansible.builtin.assert:
+        that: item in ansible_facts.packages
+        fail_msg: "{{ item }} is missing"
+        quiet: true
+      loop: [curl, unattended-upgrades, sudo, docker-ce, containerd.io]
+
+    - name: Read the k3s version
+      ansible.builtin.command: k3s --version
+      register: verify_k3s
+      changed_when: false
+
+    - name: K3s matches the pinned version
+      ansible.builtin.assert:
+        that: verify_k3s_defaults.k3s_version in verify_k3s.stdout
+
+    - name: Read the deploy account
+      ansible.builtin.getent:
+        database: passwd
+        key: deploy
+
+    - name: Read the operators group
+      ansible.builtin.getent:
+        database: group
+        key: "{{ verify_users_defaults.users_group }}"
+
+    - name: Deploy exists with bash and is in the operators group
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.getent_passwd.deploy[5] == '/bin/bash'
+          - "'deploy' in ansible_facts.getent_group[verify_users_defaults.users_group][2].split(',')"
+
+    - name: Read the offboarded account
+      ansible.builtin.getent:
+        database: passwd
+        key: former-operator
+        fail_key: false
+
+    - name: The offboarded account is gone
+      ansible.builtin.assert:
+        that: ansible_facts.getent_passwd['former-operator'] is none
+
+    - name: Read deploy's authorized_keys
+      ansible.builtin.slurp:
+        src: /home/deploy/.ssh/authorized_keys
+      register: verify_keys
+
+    - name: Only the lab key is authorized
+      ansible.builtin.assert:
+        that: (verify_keys.content | b64decode).strip().splitlines() | length == 1
+
+    - name: Check the sudoers drop-in with visudo
+      ansible.builtin.command: "visudo -cf /etc/sudoers.d/{{ verify_users_defaults.users_group }}"
+      changed_when: false
+
+    - name: Stat the sudoers drop-in
+      ansible.builtin.stat:
+        path: "/etc/sudoers.d/{{ verify_users_defaults.users_group }}"
+      register: verify_sudoers
+
+    - name: The sudoers drop-in is 0440 root
+      ansible.builtin.assert:
+        that:
+          - verify_sudoers.stat.mode == '0440'
+          - verify_sudoers.stat.pw_name == 'root'
+
+    - name: The k3s token came from Vault and is not empty
+      ansible.builtin.assert:
+        that: k3s_token | length >= 32
+        quiet: true
+      no_log: true

@@ -1,0 +1,9 @@
+---
+# Plain vars point at vault_* names, so a grep shows where each secret is used.
+k3s_token: "{{ vault_k3s_token }}"
+users_operators:
+  - name: deploy
+    # Lab-only public key (its private half was discarded after generation).
+    pubkey: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILc23M+21faOCqN4r9Ue7pLaxwFrz/4Gf0g+vG/0H8WG deploy@mizan-lab
+  - name: former-operator
+    state: absent  # offboarding: account and home removed

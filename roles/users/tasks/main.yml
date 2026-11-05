@@ -1,0 +1,43 @@
+---
+- name: Install sudo
+  ansible.builtin.apt:
+    name: sudo
+    state: present
+
+- name: Create the operators group
+  ansible.builtin.group:
+    name: "{{ users_group }}"
+    state: present
+
+- name: Create or remove operator accounts
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    shell: /bin/bash
+    groups: "{{ users_group }}"
+    append: true
+    password: "!"  # locked: SSH keys only
+    update_password: on_create
+    state: "{{ item.state | default('present') }}"
+    remove: "{{ (item.state | default('present')) == 'absent' }}"
+  loop: "{{ users_operators }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Authorize each operator's SSH key (exclusive)
+  ansible.posix.authorized_key:
+    user: "{{ item.name }}"
+    key: "{{ item.pubkey }}"
+    exclusive: true
+  loop: "{{ users_operators }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: (item.state | default('present')) == 'present'
+
+- name: Grant the group scoped sudo (checked with visudo before it is applied)
+  ansible.builtin.template:
+    src: sudoers.j2
+    dest: "/etc/sudoers.d/{{ users_group }}"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s

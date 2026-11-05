@@ -1,0 +1,2 @@
+# Managed by Ansible (role users). Edits here are overwritten.
+%{{ users_group }} ALL=(root) NOPASSWD: {{ users_sudo_commands | join(', ') }}
