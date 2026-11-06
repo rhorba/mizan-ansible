@@ -1,40 +1,12 @@
 ---
-- name: Install base packages
-  ansible.builtin.apt:
-    name: "{{ base_packages }}"
-    state: present
-    update_cache: true
-    cache_valid_time: 3600
+- name: Check that the OS family is supported
+  ansible.builtin.assert:
+    that: ansible_facts['os_family'] in ['Debian', 'RedHat']
+    fail_msg: "Supported: Ubuntu and Rocky/Alma/RHEL 9, got {{ ansible_facts['os_family'] }}"
+    quiet: true
 
-- name: Enable unattended security upgrades
-  ansible.builtin.copy:
-    dest: /etc/apt/apt.conf.d/20auto-upgrades
-    content: |
-      APT::Periodic::Update-Package-Lists "1";
-      APT::Periodic::Unattended-Upgrade "1";
-    owner: root
-    group: root
-    mode: "0644"
-
-- name: Open host iptables (the VCN security list is the firewall)
-  when: base_open_host_iptables | bool
-  block:
-    - name: Ensure /etc/iptables exists
-      ansible.builtin.file:
-        path: /etc/iptables
-        state: directory
-        owner: root
-        group: root
-        mode: "0755"
-
-    - name: Write permissive rules.v4
-      ansible.builtin.template:
-        src: rules.v4.j2
-        dest: /etc/iptables/rules.v4
-        owner: root
-        group: root
-        mode: "0644"
-      notify: Restore iptables
+- name: Packages, automatic security updates and host firewall for {{ ansible_facts['os_family'] }}
+  ansible.builtin.include_tasks: "{{ ansible_facts['os_family'] | lower }}.yml"
 
 - name: Harden sshd
   when: base_harden_ssh | bool

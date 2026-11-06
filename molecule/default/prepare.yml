@@ -1,0 +1,13 @@
+---
+# Make the test containers look like a real server image before converge.
+# A real Rocky/RHEL host always ships systemd; the minimal container image does not,
+# and the k3s installer refuses to run without systemd or openrc.
+- name: Prepare
+  hosts: mizan_nodes
+  gather_facts: true
+  tasks:
+    - name: Install systemd on RHEL-family containers
+      ansible.builtin.dnf:
+        name: systemd
+        state: present
+      when: ansible_facts['os_family'] == 'RedHat'

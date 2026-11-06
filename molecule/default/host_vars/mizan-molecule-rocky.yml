@@ -1,0 +1,12 @@
+---
+# A container has no running systemd, sshd, host firewall or live SELinux: install-only
+# checks here, services are checked on a real VM (inventories/oci).
+ansible_become: false
+base_open_host_iptables: false
+base_harden_ssh: false
+docker_manage_service: false
+k3s_start: false
+base_manage_services: false
+# The image's /etc/selinux/config says enforcing, but SELinux is not live in a container,
+# so the installer cannot label the binary. A real Rocky host keeps the default (false).
+k3s_selinux_warn: true

@@ -20,6 +20,7 @@
     INSTALL_K3S_VERSION: "{{ k3s_version }}"
     INSTALL_K3S_SKIP_START: "{{ 'false' if k3s_start | bool else 'true' }}"
     INSTALL_K3S_SKIP_ENABLE: "{{ 'false' if k3s_start | bool else 'true' }}"
+    INSTALL_K3S_SELINUX_WARN: "{{ 'true' if k3s_selinux_warn | bool else 'false' }}"
     K3S_TOKEN: "{{ k3s_token }}"
   when: k3s_version not in (k3s_installed.stdout | default(''))
   changed_when: true

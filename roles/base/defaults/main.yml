@@ -1,11 +1,21 @@
 ---
-base_packages:
+base_packages_debian:
   - ca-certificates
   - curl
   - gnupg
   - unattended-upgrades
   - python3-debian  # needed by deb822_repository (docker role)
-# OCI Ubuntu images reject everything but SSH in host iptables; the VCN
-# security list is the real firewall, so open the host rules (as cloud-init did).
+# curl is left out on purpose: EL 9 images ship curl-minimal, which conflicts with the full curl package.
+base_packages_redhat:
+  - ca-certificates
+  - gnupg2
+  - dnf-automatic
+# OCI images reject everything but SSH at the host firewall; the VCN security list is the
+# real firewall, so open the host (as cloud-init did). Ubuntu: permissive iptables rules.
+# RHEL family: firewalld stopped and disabled.
 base_open_host_iptables: true
 base_harden_ssh: true
+# false where there is no systemd (containers): timers and services are left alone.
+base_manage_services: true
+# The OpenSSH unit is "ssh" on Ubuntu and "sshd" on the RHEL family.
+base_ssh_service: "{{ 'sshd' if ansible_facts['os_family'] == 'RedHat' else 'ssh' }}"

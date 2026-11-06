@@ -4,5 +4,9 @@ k3s_install_flags: >-
   --write-kubeconfig-mode 600
   --secrets-encryption
 k3s_start: true
+# RHEL family: the installer labels the binary for SELinux and stops if that fails while
+# /etc/selinux/config says enforcing. true turns that stop into a warning. Keep it false on
+# real hosts; only a container (no live SELinux) needs it.
+k3s_selinux_warn: false
 # Cluster join token. Set it from Ansible Vault (vault_k3s_token), never in plain text.
 k3s_token: ""

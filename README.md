@@ -4,12 +4,15 @@ Ansible roles that prepare a [mizan-v2](https://github.com/rhorba/mizan-v2) node
 the `runcmd` block of the Terraform cloud-init (Ubuntu 24.04 on OCI Ampere A1), so the node
 setup becomes repeatable, reviewable and testable instead of a one-shot boot script.
 
+Supported targets: **Ubuntu 24.04** and **Rocky / Alma / RHEL 9**. Each role picks its
+`debian.yml` or `redhat.yml` tasks from `ansible_facts['os_family']`, and both are tested in CI.
+
 | Role | What it does |
 |------|--------------|
-| `base` | Base packages, unattended security upgrades, host iptables opened (the VCN security list is the firewall), sshd hardening validated with `sshd -t` before it is applied |
+| `base` | Base packages; automatic security updates (`unattended-upgrades` on Ubuntu, `dnf-automatic` on EL 9); host firewall opened because the VCN security list is the firewall (permissive iptables on Ubuntu, firewalld off on EL 9, as the k3s docs recommend); sshd hardening validated with `sshd -t` before it is applied |
 | `users` | Operator accounts with locked passwords and key-only SSH (`exclusive` keys), offboarding with `state: absent`, scoped `NOPASSWD` sudo for one group, checked with `visudo` before it is applied |
-| `docker` | Docker Engine from the official apt repo (deb822, arm64/amd64), optional users in the `docker` group |
-| `k3s` | k3s pinned to `k3s_version` with secrets encryption; cluster token from Ansible Vault (kept out of logs); reinstalls only when the version differs, then waits for the node to be Ready |
+| `docker` | Docker Engine from the official repo (apt deb822 on Ubuntu, dnf on EL 9; arm64/amd64), optional users in the `docker` group |
+| `k3s` | k3s pinned to `k3s_version` with secrets encryption; cluster token from Ansible Vault (kept out of logs); reinstalls only when the version differs, then waits for the node to be Ready. On EL 9 the installer also adds the `k3s-selinux` policy |
 
 ## Run the lab
 
@@ -39,7 +42,7 @@ molecule test                   # create, converge, idempotence, verify, destroy
 
 GitHub Actions (`.github/workflows/ci.yml`) on every push and pull request:
 1. **lint**: vault files encrypted, `yamllint`, `ansible-lint` production profile
-2. **molecule**: Ubuntu 24.04 container, converge, a second run that must change nothing,
+2. **molecule**: two containers, Ubuntu 24.04 and Rocky Linux 9, converge, a second run that must change nothing,
    then `verify.yml` (packages, pinned k3s version, operator account and group, offboarded
    account removed, a single authorized key, sudoers file valid and `0440`, Vault token loaded)
 
@@ -67,4 +70,9 @@ For the cloud node, copy `inventories/oci/hosts.yml.example` to `hosts.yml`.
 - [x] Part 1: base / docker / k3s roles, idempotent, ansible-lint production profile
 - [x] Part 2: `users` role, Molecule scenario + GitHub Actions (lint, converge, idempotence, verify), Ansible Vault for the k3s token
 - [x] Part 2b: real VM run (Multipass), services started and checked; `force_handlers` so a failed run cannot drop the iptables/ssh handlers
-- [ ] Part 3: Rocky / Alma (RHEL family) support
+- [x] Part 3: Rocky / Alma / RHEL 9 support: per-OS task files, `dnf-automatic`, firewalld, Docker dnf repo, `k3s-selinux`; Molecule runs Ubuntu 24.04 and Rocky 9 side by side
+
+Container-only settings for Rocky (`molecule/default/`): `prepare.yml` installs systemd (a real
+EL 9 host always has it, the minimal image does not), and `k3s_selinux_warn: true` because SELinux
+is not live in a container. Real hosts keep the default `false`. The real-VM service checks
+(`verify-services.yml`) are Ubuntu-only for now.

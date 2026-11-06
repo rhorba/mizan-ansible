@@ -1,7 +1,11 @@
 ---
 - name: Verify the mizan node
   hosts: mizan_nodes
-  gather_facts: false
+  gather_facts: true  # os_family picks the package list below
+  vars:
+    verify_packages:
+      Debian: [curl, unattended-upgrades, sudo, docker-ce, containerd.io]
+      RedHat: [curl-minimal, dnf-automatic, sudo, docker-ce, containerd.io]
   tasks:
     # Namespaced, so they cannot override inventory values such as the Vault token.
     - name: Load the k3s role defaults
@@ -22,7 +26,7 @@
         that: item in ansible_facts.packages
         fail_msg: "{{ item }} is missing"
         quiet: true
-      loop: [curl, unattended-upgrades, sudo, docker-ce, containerd.io]
+      loop: "{{ verify_packages[ansible_facts['os_family']] }}"
 
     - name: Read the k3s version
       ansible.builtin.command: k3s --version

@@ -5,5 +5,5 @@
 
 - name: Reload ssh
   ansible.builtin.service:
-    name: ssh
+    name: "{{ base_ssh_service }}"
     state: reloaded

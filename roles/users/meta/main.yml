@@ -9,4 +9,6 @@ galaxy_info:
   platforms:
     - name: Ubuntu
       versions: [noble]
+    - name: EL
+      versions: ["9"]
 dependencies: []

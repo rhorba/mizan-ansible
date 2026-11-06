@@ -1,0 +1,42 @@
+---
+- name: Install base packages
+  ansible.builtin.dnf:
+    name: "{{ base_packages_redhat }}"
+    state: present
+
+# Same intent as unattended-upgrades on Ubuntu: security fixes only, applied automatically.
+- name: Configure dnf-automatic for security updates
+  ansible.builtin.lineinfile:
+    path: /etc/dnf/automatic.conf
+    regexp: "^{{ item.key }}\\s*="
+    line: "{{ item.key }} = {{ item.value }}"
+    insertafter: '^\[commands\]'
+  loop:
+    - { key: upgrade_type, value: security }
+    - { key: apply_updates, value: "yes" }
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Enable the dnf-automatic timer
+  ansible.builtin.systemd_service:
+    name: dnf-automatic.timer
+    state: started
+    enabled: true
+  when: base_manage_services | bool
+
+# RHEL-family cloud images ship firewalld instead of a saved iptables file. The k3s docs
+# recommend turning it off, and the VCN security list stays the real firewall.
+- name: Turn off firewalld (the VCN security list is the firewall)
+  when:
+    - base_open_host_iptables | bool
+    - base_manage_services | bool
+  block:
+    - name: Collect service states
+      ansible.builtin.service_facts:
+
+    - name: Stop and disable firewalld
+      ansible.builtin.systemd_service:
+        name: firewalld
+        state: stopped
+        enabled: false
+      when: "'firewalld.service' in ansible_facts.services"
